@@ -6,6 +6,7 @@ import { FiCalendar, FiUser } from 'react-icons/fi';
 import Prismic from '@prismicio/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useState } from 'react';
 import { getPrismicClient } from '../services/prismic';
 
 import styles from './home.module.scss';
@@ -30,8 +31,32 @@ interface HomeProps {
 }
 
 export default function Home({ postsPagination }: HomeProps): JSX.Element {
-  function handleLoadMorePosts() {
-    return 0;
+  const [pagination, setPagination] = useState<PostPagination>(postsPagination);
+
+  async function handleLoadMorePosts(): Promise<void> {
+    const nextPagePromise = await fetch(postsPagination.next_page);
+
+    const nextPagePromiseJson = await nextPagePromise.json();
+
+    const { results } = nextPagePromiseJson;
+    const { next_page } = nextPagePromiseJson;
+
+    const newPostPagination: PostPagination = {
+      ...pagination,
+      next_page,
+    };
+
+    results.forEach(post => {
+      const newPost: Post = {
+        uid: post.uid,
+        first_publication_date: post.first_publication_date,
+        data: post.data,
+      };
+
+      newPostPagination.results.push(newPost);
+    });
+
+    setPagination(newPostPagination);
   }
 
   return (
@@ -43,7 +68,7 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
       <main className={styles.container}>
         <img src="/logo.svg" alt="logo" />
         <div className={styles.posts}>
-          {postsPagination.results.map(post => (
+          {pagination.results.map(post => (
             <Link key={post.uid} href={`/post/${post.uid}`}>
               <a>
                 <strong>{post.data.title}</strong>
@@ -63,7 +88,7 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
               </a>
             </Link>
           ))}
-          {postsPagination.next_page && (
+          {pagination.next_page && (
             <button type="button" onClick={handleLoadMorePosts}>
               Carregar mais posts
             </button>
@@ -92,7 +117,7 @@ export const getStaticProps: GetStaticProps = async () => {
       data: post.data,
     })),
   };
-  console.log(postsPagination.next_page);
+
   return {
     props: {
       postsPagination,
